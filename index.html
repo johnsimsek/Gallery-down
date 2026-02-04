@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Inky Vibes Story Gallery</title>
+  <style>
+    :root{--bg:#0b0d12;--line:rgba(255,255,255,.12);--text:#e6eaf2;--shadow:0 20px 60px rgba(0,0,0,.45);--radius:18px;--accent:#7c3aed;}
+    *{box-sizing:border-box} html,body{height:100%}
+    body{margin:0;background:radial-gradient(1200px 800px at 30% 10%, #1a2140 0%, var(--bg) 45%, #07080b 100%);color:var(--text);
+      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+    .stage{height:100%;display:flex;flex-direction:column;gap:14px;padding:18px;max-width:1100px;margin:0 auto;}
+    .viewer{position:relative;flex:1 1 auto;min-height:320px;border:1px solid var(--line);
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);
+      user-select:none;-webkit-user-select:none;touch-action:pan-y;}
+    .main-img{width:100%;height:100%;object-fit:contain;display:block;background:rgba(0,0,0,.25);transform:translateZ(0);}
+    .topbar{position:absolute;top:10px;left:10px;right:10px;display:flex;flex-direction:column;gap:10px;pointer-events:none;z-index:10;}
+    .row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+    .title{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);background:rgba(0,0,0,.35);backdrop-filter:blur(10px);
+      border-radius:999px;pointer-events:auto;max-width:70%;}
+    .dot{width:10px;height:10px;border-radius:99px;background:var(--accent);box-shadow:0 0 0 4px rgba(124,58,237,.18);flex:0 0 auto;}
+    .caption{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;}
+    .actions{display:flex;gap:8px;pointer-events:auto;}
+    .icon-btn{border:1px solid var(--line);background:rgba(0,0,0,.35);color:var(--text);border-radius:12px;padding:10px 12px;cursor:pointer;
+      backdrop-filter:blur(10px);font-size:14px;line-height:1}
+    .icon-btn:active{transform:translateY(1px);} .icon-btn:hover{border-color:rgba(255,255,255,.25);}
+    .zone{position:absolute;top:0;bottom:0;width:40%;border:0;background:transparent;cursor:pointer;z-index:6;}
+    .zone--left{left:0} .zone--right{right:0}
+    .progress{display:flex;gap:6px;padding:0 4px;pointer-events:none;}
+    .progress .seg{height:4px;flex:1;background:rgba(255,255,255,.18);border-radius:99px;overflow:hidden;}
+    .progress .fill{height:100%;width:0%;background:rgba(255,255,255,.9);border-radius:99px;}
+    .thumbs{display:flex;gap:10px;padding:10px;border:1px solid var(--line);border-radius:var(--radius);background:rgba(0,0,0,.28);overflow-x:auto;box-shadow:var(--shadow);}
+    .thumb{border:1px solid rgba(255,255,255,.14);border-radius:14px;overflow:hidden;width:86px;height:56px;flex:0 0 auto;background:rgba(255,255,255,.06);cursor:pointer;padding:0}
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+    .thumb.is-active{outline:2px solid rgba(124,58,237,.9);box-shadow:0 0 0 6px rgba(124,58,237,.18);}
+    .loader{position:absolute;inset:0;background:linear-gradient(110deg,rgba(255,255,255,.08) 8%,rgba(255,255,255,.14) 18%,rgba(255,255,255,.08) 33%);
+      background-size:200% 100%;animation:shimmer 1.2s linear infinite;opacity:0;pointer-events:none;z-index:7;}
+    .loader.is-on{opacity:1} @keyframes shimmer{to{background-position-x:-200%;}}
+    @media (max-width:600px){.stage{padding:12px}.zone{width:35%}.thumb{width:78px;height:52px}}
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <section class="viewer" id="viewer">
+      <button class="zone zone--left" id="prevBtn" aria-label="Previous"></button>
+      <button class="zone zone--right" id="nextBtn" aria-label="Next"></button>
+
+      <img id="mainImg" class="main-img" alt="Gallery image" />
+
+      <div class="topbar">
+        <div class="progress" id="progress" aria-hidden="true"></div>
+
+        <div class="row">
+          <div class="title">
+            <span class="dot"></span>
+            <span id="caption" class="caption">Gallery</span>
+          </div>
+          <div class="actions">
+            <button class="icon-btn" id="playPauseBtn" title="Pause/Play">❚❚</button>
+            <button class="icon-btn" id="fsBtn" title="Fullscreen">⛶</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="loader" id="loader" aria-hidden="true"></div>
+    </section>
+
+    <nav class="thumbs" id="thumbs" aria-label="Thumbnails"></nav>
+  </main>
+
+  <script>
+    // FOTOĞRAFLAR index.html ile AYNI KLASÖRDE OLMALI:
+    // 01.jpg, 02.jpg, 03.jpg ... 12.jpg
+    const IMAGES = [
+      { src: "01.jpg", caption: "Tattoo 01" },
+      { src: "02.jpg", caption: "Tattoo 02" },
+      { src: "03.jpg", caption: "Tattoo 03" },
+      { src: "04.jpg", caption: "Tattoo 04" },
+      { src: "05.jpg", caption: "Tattoo 05" },
+      { src: "06.jpg", caption: "Tattoo 06" },
+      { src: "07.jpg", caption: "Tattoo 07" },
+      { src: "08.jpg", caption: "Tattoo 08" },
+      { src: "09.jpg", caption: "Tattoo 09" },
+      { src: "10.jpg", caption: "Tattoo 10" },
+      { src: "11.jpg", caption: "Tattoo 11" },
+      { src: "12.jpg", caption: "Tattoo 12" }
+    ];
+
+    const STORY_DURATION = 5500;
+
+    const mainImg = document.getElementById("mainImg");
+    const captionEl = document.getElementById("caption");
+    const thumbsEl = document.getElementById("thumbs");
+    const progressEl = document.getElementById("progress");
+    const loaderEl = document.getElementById("loader");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const playPauseBtn = document.getElementById("playPauseBtn");
+    const fsBtn = document.getElementById("fsBtn");
+    const viewer = document.getElementById("viewer");
+
+    let index = 0, playing = true, rafId = null, startTime = performance.now();
+    const segs = [], thumbButtons = [];
+
+    function buildProgress(){
+      progressEl.innerHTML = ""; segs.length = 0;
+      for(let i=0;i<IMAGES.length;i++){
+        const seg=document.createElement("div"); seg.className="seg";
+        const fill=document.createElement("div"); fill.className="fill";
+        seg.appendChild(fill); progressEl.appendChild(seg); segs.push(fill);
+      }
+    }
+
+    function buildThumbs(){
+      thumbsEl.innerHTML=""; thumbButtons.length=0;
+      IMAGES.forEach((img,i)=>{
+        const b=document.createElement("button");
+        b.type="button"; b.className="thumb";
+        b.innerHTML='<img loading="lazy" alt="" src="'+img.src+'">';
+        b.addEventListener("click",()=>goTo(i,true));
+        thumbsEl.appendChild(b); thumbButtons.push(b);
+      });
+    }
+
+    function setActiveThumb(){
+      thumbButtons.forEach((b,i)=>b.classList.toggle("is-active",i===index));
+      const active=thumbButtons[index];
+      if(active) active.scrollIntoView({behavior:"smooth", inline:"center", block:"nearest"});
+    }
+
+    function setProgressBase(){
+      for(let i=0;i<segs.length;i++){
+        if(i<index) segs[i].style.width="100%";
+        else if(i>index) segs[i].style.width="0%";
+      }
+    }
+
+    function showLoader(on){ loaderEl.classList.toggle("is-on",!!on); }
+
+    function loadImage(i){
+      const item=IMAGES[i]; if(!item) return;
+      showLoader(true);
+      const tmp=new Image();
+      tmp.decoding="async";
+      tmp.onload=()=>{
+        mainImg.src=item.src;
+        captionEl.textContent=item.caption||"Gallery";
+        showLoader(false);
+      };
+      tmp.onerror=()=>{
+        captionEl.textContent="Failed to load: "+item.src;
+        showLoader(false);
+      };
+      tmp.src=item.src;
+      setActiveThumb();
+      setProgressBase();
+    }
+
+    function goTo(i, resetTimer){
+      index=(i+IMAGES.length)%IMAGES.length;
+      loadImage(index);
+      if(resetTimer){ startTime=performance.now(); tick(); }
+    }
+
+    function next(reset=true){ goTo(index+1,reset); }
+    function prev(reset=true){ goTo(index-1,reset); }
+
+    function tick(){
+      if(!playing) return;
+      const now=performance.now();
+      const t=Math.min(1,(now-startTime)/STORY_DURATION);
+      if(segs[index]) segs[index].style.width=(t*100).toFixed(2)+"%";
+      if(t>=1){ startTime=now; next(false); }
+      rafId=requestAnimationFrame(tick);
+    }
+
+    function play(){
+      if(playing) return;
+      playing=true; playPauseBtn.textContent="❚❚";
+      startTime=performance.now(); tick();
+    }
+
+    function pause(){
+      if(!playing) return;
+      playing=false; playPauseBtn.textContent="▶";
+      if(rafId) cancelAnimationFrame(rafId); rafId=null;
+    }
+
+    function togglePlay(){ playing?pause():play(); }
+
+    nextBtn.addEventListener("click",()=>next(true));
+    prevBtn.addEventListener("click",()=>prev(true));
+    playPauseBtn.addEventListener("click",togglePlay);
+
+    window.addEventListener("keydown",(e)=>{
+      if(e.key==="ArrowRight") next(true);
+      if(e.key==="ArrowLeft") prev(true);
+      if(e.key===" "){ e.preventDefault(); togglePlay(); }
+      if(e.key.toLowerCase()==="f") toggleFullscreen();
+    });
+
+    function toggleFullscreen(){
+      if(!document.fullscreenElement) viewer.requestFullscreen?.();
+      else document.exitFullscreen?.();
+    }
+    fsBtn.addEventListener("click",toggleFullscreen);
+
+    let touchX=null;
+    viewer.addEventListener("touchstart",(e)=>{ if(e.touches?.length) touchX=e.touches[0].clientX; },{passive:true});
+    viewer.addEventListener("touchend",(e)=>{
+      if(touchX===null) return;
+      const endX=e.changedTouches?.length?e.changedTouches[0].clientX:touchX;
+      const dx=endX-touchX; touchX=null;
+      if(Math.abs(dx)>40){ dx<0 ? next(true) : prev(true); }
+    });
+
+    viewer.addEventListener("mouseenter",pause);
+    viewer.addEventListener("mouseleave",play);
+
+    buildProgress();
+    buildThumbs();
+    loadImage(index);
+    setActiveThumb();
+    startTime=performance.now();
+    tick();
+  </script>
+</body>
+</html>
